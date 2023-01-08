@@ -1,0 +1,80 @@
+const mongoose = require('mongoose');
+const axios = require('axios');
+
+const WeatherData = require('./models/WeatherData');
+const ForecastData = require('./models/Forecast');
+const HistoricalData = require('./models/HistoricalData');
+
+// Connect to your MongoDB database
+mongoose.connect('mongodb://127.0.0.1', {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+});
+
+// Replace "API_KEY" with your actual API key and "CITY" with the name of the city you want to get data for
+const API_KEY = "02cde9eacbdafde51e78d11fa089556d";
+
+const weatherApiUrl = `https://api.openweathermap.org/data/2.5/weather?q=delhi&appid=${API_KEY}`;
+const forecastApiUrl = `https://api.openweathermap.org/data/2.5/forecast?q=delhi&appid=${API_KEY}`;
+const historicalApiUrl = `https://api.openweathermap.org/data/2.5/history?q=delhi&appid=${API_KEY}`;
+
+// Fetch current weather data from the OpenWeatherMap API
+axios.get(weatherApiUrl)
+  .then(response => {
+    // Create a new WeatherData model with the fetched data
+    const weatherData = new WeatherData({
+      city: response.data.name,
+      temperature: response.data.main.temp,
+      humidity: response.data.main.humidity,
+      windSpeed: response.data.wind.speed
+    });
+
+    // Save the weather data to the database
+    weatherData.save()
+      .then(() => console.log('Weather data saved to database'))
+      .catch(err => console.error(err));
+  })
+  .catch(err => console.error(err));
+
+// Fetch forecast data from the OpenWeatherMap API
+axios.get(forecastApiUrl)
+  .then(response => {
+    const forecastData = new ForecastData({
+      city: response.data.city.name,
+      forecast: response.data.list.map(item => ({
+        temperature: item.main.temp,
+        humidity: item.main.humidity,
+        windSpeed: item.wind.speed
+      }))
+    });
+
+    // Save the forecast data to the database
+    forecastData.save()
+      .then(() => console.log('Forecast data saved to database'))
+      .catch(err => console.error(err));
+  })
+  .catch(err => console.error(err));
+
+// Fetch historical data from the OpenWeatherMap API
+axios.get(historicalApiUrl)
+  .then(response => {
+    if (response.data.list.length === 0) {
+      console.log('No historical data available for this city');
+      return;
+    }
+
+    const historicalData = new HistoricalData({
+      city: response.data.city.name,
+      data: response.data.list.map(item => ({
+        temperature: item.main.temp,
+        humidity: item.main.humidity,
+        windSpeed: item.wind.speed
+      }))
+    });
+
+    // Save the historical data to the database
+    historicalData.save()
+      .then(() => console.log('Historical data saved to database'))
+      .catch(err => console.error(err));
+  })
+  .catch(err => console.error(err));
